@@ -26,7 +26,7 @@ jobs:
             --targets "Key=tag:App,Values=flask" \
             --document-name "AWS-RunShellScript" \
             --parameters '{"commands":["hostname -I"]}' \
-            --query 'Command.CommandId' \
+            --query 'Commands.CommandId' \
             --output text)
 
           sleep 30
@@ -34,5 +34,5 @@ jobs:
           aws ssm list-command-invocations \
             --command-id "$CMD_ID" \
             --details \
-            --query "CommandInvocations[*].{Instance:InstanceId,Output:CommandPlugins[0].Output}" \
+            --query "CommandInvocations[*].{Instance:InstanceId,CommandPlugins[0].Output}" \
             --output table
