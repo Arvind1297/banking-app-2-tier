@@ -15,21 +15,45 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: aws-actions/configure-aws-credentials@v4
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: arn:aws:iam::514454346636:role/github-action-deploy-role
           aws-region: us-east-1
 
-      - name: Print Private IPs
+      - name: Verify AWS Identity
+        run: |
+          aws sts get-caller-identity
+
+      - name: Check SSM Managed Instances
+        run: |
+          aws ssm describe-instance-information --output table
+
+      - name: Send SSM Command
         run: |
           CMD_ID=$(aws ssm send-command \
             --targets "Key=tag:App,Values=flask" \
             --document-name "AWS-RunShellScript" \
             --parameters '{"commands":["hostname -I"]}' \
-            --query 'Commands.CommandId' \
+            --query "Command.CommandId" \
             --output text)
 
-          sleep 30
+          echo "Command ID: $CMD_ID"
+
+          if [ -z "$CMD_ID" ] || [ "$CMD_ID" = "None" ]; then
+            echo "SSM command was not created."
+            exit 1
+          fi
+
+          echo "Waiting for command to complete..."
+          sleep 20
+
+          aws ssm list-command-invocations \
+            --command-id "$CMD_ID" \
+            --details \
+            --output table
+
+          echo "----- Command Output -----"
 
           aws ssm list-command-invocations \
             --command-id "$CMD_ID" \
