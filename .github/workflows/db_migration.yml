@@ -1,4 +1,4 @@
-name: Initialization Database
+name: Initializing Database
 
 on:
   workflow_dispatch:
@@ -8,55 +8,72 @@ permissions:
   contents: read
 
 jobs:
-  init_db:
+  db-init:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: aws-actions/configure-aws-credentials@v4
+      - name: Checkout Repo
+        uses: actions/checkout@v4
+        with:
+          repository: Arvind1297/banking-app-2-tier
+          ref: main
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: arn:aws:iam::514454346636:role/github-action-deploy-role
           aws-region: us-east-1
 
-      - name: Upload file on S3
+      - name: Upload SQL files to S3
         run: |
-          aws s3 mb s3://514454346636-devops-scripts --region us-east-1 || echo "Bucket already exists"
-          aws s3 cp init.sql s3://514454346636-devops-scripts/init.sql --region us-east-1
-          aws s3 cp init.py s3://514454346636-devops-scripts/init.py --region us-east-1
-          echo "✅ Files Uploaded to bucket......"
-      - name: Initializing Database on RDS using EC2
+          aws s3 mb s3://875285643684-devops-scripts --region us-east-1 2>/dev/null || true
+          aws s3 cp init.sql s3://514454346636-devops-scripts/init.sql
+          aws s3 cp init.py s3://514454346636-devops-scripts/init.py
+          echo "✅ SQL files uploaded"
+
+      - name: Run DB Initialization via EC2 (SSM)
+        id: db
         run: |
           CMD_ID=$(aws ssm send-command \
             --targets "Key=tag:App,Values=flask" \
             --document-name "AWS-RunShellScript" \
             --parameters '{"commands":[
-              "aws s3 cp s3://514454346636-devops-scripts/init.sql",
-    
-              "python3 /tmp/init.py" ,
-              "rm -rf /tmp/init.sql /tmp/init.py"
+              "echo 'Starting DB initialization...'",
+              "aws s3 cp s3://514454346636-devops-scripts/init.sql /tmp/init.sql",
+
+              "echo 'Checking DB variables...'",
+              "printenv | grep DB || true",
+
+              "echo 'Running SQL on RDS...'",
+              "mysql -h $DB_HOST -u $DB_USER -p$DB_PASSWORD $DB_NAME < /tmp/init.sql",
+
+              "echo 'DB Initialization Completed'"
             ]}' \
-            --query 'Command.CommandId'
-            --output text
-            --region us-east-1)
-          echo "cmd_id"=$"CMD_ID" >> $GITHUB_OUT  
-      - name: Show Results
-        run: |
-          sleep 30
-
-          aws ssm list-command-invocations \
-            --command-id "${{steps.init_db.outputs.cmd_id}}" \
-            --details \
-            --region us-east-1 \
-            --output text
-
-          FAILED=$(aws ssm list-command-invocations \
-            --command-id "${{steps.init_db.outputs.cmd_id}}" \
-            --query 'CommandInvocations[*].Status' \
+            --query 'Command.CommandId' \
             --output text \
             --region us-east-1)
 
-          if [[ "$FAILED" == "Failed" ]]; then
-            echo "::error::Database Initialization Failed on RDS"
+          echo "cmd_id=$CMD_ID" >> $GITHUB_OUTPUT
+
+      - name: Wait for SSM Execution
+        run: sleep 30
+
+      - name: Show Execution Result
+        run: |
+          aws ssm list-command-invocations \
+            --command-id "${{ steps.db.outputs.cmd_id }}" \
+            --details \
+            --region us-east-1
+
+          FAILED=$(aws ssm list-command-invocations \
+            --command-id "${{ steps.db.outputs.cmd_id }}" \
+            --query "length(CommandInvocations[?Status=='Failed'])" \
+            --output text \
+            --region us-east-1)
+
+          if [ "$FAILED" -gt 0 ]; then
+            echo "❌ DB Initialization Failed"
             exit 1
-          else
-            echo "✅ Database Initialized Successfully on RDSS"
           fi
+
+          echo "✅ DB Initialized Successfully"
