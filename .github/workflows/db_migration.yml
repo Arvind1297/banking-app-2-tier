@@ -58,5 +58,5 @@ jobs:
             echo "::error::Database Initialization Failed on RDS"
             exit 1
           else
-            echo "✅ Database Initialized Successfully on RDS"
+            echo "✅ Database Initialized Successfully on RDSS"
           fi
