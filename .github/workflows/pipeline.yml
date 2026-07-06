@@ -13,9 +13,10 @@ jobs:
       id-token: write
       contents: read
 
-  test_fleet_health_envs:
+
+  smoke_testing:
     needs: verify_connection
-    uses: ./.github/workflows/test_fleet_health.yml
+    uses: ./.github/workflows/smoke_test.yml
     permissions:
       id-token: write
       contents: read
