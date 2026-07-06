@@ -1,4 +1,4 @@
-name: Intializing Database
+name: Initializing Database
 
 on:
   workflow_dispatch:
@@ -10,39 +10,49 @@ permissions:
 jobs:
   init-db:
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout Repository
+        uses: actions/checkout@v4
         with:
           repository: Arvind1297/banking-app-2-tier
           ref: main
 
-      - uses: aws-actions/configure-aws-credentials@v4
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: arn:aws:iam::514454346636:role/github-action-deploy-role
           aws-region: us-east-1
 
-      - name: Upload file on S3
+      - name: Upload files to S3
         run: |
           aws s3 mb s3://514454346636-devops-scripts --region us-east-1 2>/dev/null || true
-          aws s3 cp init.sql s3://514454346636-devops-scripts/init.sql 
-          aws s3 cp init.py s3://514454346636-devops-scripts/init.py 
-          echo "✅ Files Uploaded to bucket.."
 
-      - name: Initializing Database on RDS using Ec2
+          aws s3 cp init.py s3://514454346636-devops-scripts/init.py
+          aws s3 cp init.sql s3://514454346636-devops-scripts/init.sql
+
+          echo "✅ Files uploaded successfully"
+
+      - name: Initialize Database on RDS using EC2
         id: init
         run: |
           CMD_ID=$(aws ssm send-command \
             --targets "Key=tag:App,Values=flask" \
             --document-name "AWS-RunShellScript" \
-            --parameters '{"commands":[
-              "aws s3 cp s3://514454346636-devops-scripts/init.sql",  
-              "aws s3 cp s3://514454346636-devops-scripts/init.py /tmp/init.py",
-              "python3 /tmp/init.py || exit 1",
-              "rm /tmp/init.py"
-            ]}' \
-            --query 'Command.CommandId' \
+            --parameters '{
+              "commands":[
+                "mkdir -p /tmp",
+                "aws s3 cp s3://514454346636-devops-scripts/init.py /tmp/init.py",
+                "aws s3 cp s3://514454346636-devops-scripts/init.sql /tmp/init.sql",
+                "ls -l /tmp",
+                "python3 /tmp/init.py",
+                "rm -f /tmp/init.py /tmp/init.sql"
+              ]
+            }' \
+            --query "Command.CommandId" \
             --output text \
             --region us-east-1)
+
           echo "cmd_id=$CMD_ID" >> $GITHUB_OUTPUT
 
       - name: Show Results
@@ -61,8 +71,9 @@ jobs:
             --output text \
             --region us-east-1)
 
-          [ "$FAILED" -gt 0 ] && \
-            echo "::error::Database Creation Failed $FAILED instance(s)!" && \
+          if [ "$FAILED" -gt 0 ]; then
+            echo "::error::Database Initialization Failed!"
             exit 1
+          fi
 
-          echo "✅ Database Created Successfully"
+          echo "✅ Database Initialized Successfully"
