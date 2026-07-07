@@ -1,7 +1,7 @@
 services:
-  simplebank_app:
+  simplebank:
     image: 514454346636.dkr.ecr.us-east-1.amazonaws.com/flaskapp-banking:${IMAGE_TAG}
-    container_name: simplebank_app
+    container_name: simplebank
     ports:
       - "5000:5000"
     environment:
