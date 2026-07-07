@@ -10,7 +10,7 @@ permissions:
 
 env:
   VERSION: v1
-  IMAGE: 514454346636.dkr.ecr.us-east-1.amazonaws.com/flaskapp-simple-bank
+  IMAGE: 514454346636.dkr.ecr.us-east-1.amazonaws.com/flaskapp-banking
   REGION: us-east-1
   S3_BUCKET: s3://514454346636-devops-scripts
 
