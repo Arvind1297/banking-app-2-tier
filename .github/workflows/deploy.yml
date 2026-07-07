@@ -1,12 +1,11 @@
-name : Application Deploying On AWS
+name: Application Deploying On AWS
 
 on:
   workflow_call:
 
-  
 permissions:
   id-token: write
-  contents: read  
+  contents: read
 
 env:
   VERSION: v1
@@ -17,6 +16,7 @@ env:
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v4
         with:
@@ -33,13 +33,10 @@ jobs:
           aws ecr get-login-password --region ${{ env.REGION }} | \
           docker login --username AWS --password-stdin \
           514454346636.dkr.ecr.${{ env.REGION }}.amazonaws.com
-          echo "Login Successfull to ECR ✅"
-
+          echo "Login Successful to ECR ✅"
 
       - name: Upload Docker-Compose to S3
-  run: |
-    aws s3 mb ${{ env.S3_BUCKET }} --region ${{ env.REGION }} 2>/dev/null || true
-    aws s3 cp docker-compose.yml ${{ env.S3_BUCKET }}/ --region ${{ env.REGION }}
-    echo "Docker compose Uploaded ✅"
-
-     
+        run: |
+          aws s3 mb ${{ env.S3_BUCKET }} --region ${{ env.REGION }} 2>/dev/null || true
+          aws s3 cp docker-compose.yml ${{ env.S3_BUCKET }}/ --region ${{ env.REGION }}
+          echo "Docker compose Uploaded ✅"
