@@ -1,14 +1,14 @@
 services:
   simplebank_app:
-    image: image: 514454346636.dkr.ecr.us-east-1.amazonaws.com/flaskapp-banking:${IMAGE_TAG}
+    image: 514454346636.dkr.ecr.us-east-1.amazonaws.com/flaskapp-banking:${IMAGE_TAG}
     container_name: simplebank_app
     ports:
       - "5000:5000"
     environment:
-      - "FLASK_ENV=production"
+      - FLASK_ENV=production
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl" , "-f" , "http://localhost:5000/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
       interval: 30s
       timeout: 10s
       retries: 5
